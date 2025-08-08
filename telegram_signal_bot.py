@@ -567,71 +567,98 @@ def start_auto_update():
 # Запуск бота
 if __name__ == "__main__":
     print("🤖 Запуск VIP Сигналы Mines бота...")
-    
+
     # Регистрируем обработчики сигналов
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Очищаем webhook'и для предотвращения конфликтов
+
+    # ОКОНЧАТЕЛЬНАЯ очистка webhook'ов для предотвращения конфликтов
     try:
-        print("🧹 Очистка webhook'ов...")
-        bot.remove_webhook()
-        time.sleep(2)
+        print("🧹 ОКОНЧАТЕЛЬНАЯ очистка webhook'ов...")
         
-        # Дополнительная очистка через API
+        # Уровень 1: Очистка через telebot
+        bot.remove_webhook()
+        time.sleep(3)
+        
+        # Уровень 2: Принудительная очистка через API
         try:
             import requests
+            
+            # Принудительно удаляем ВСЕ webhook'и
             webhook_url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
             response = requests.post(webhook_url, json={"drop_pending_updates": True})
             if response.status_code == 200:
                 print("✅ Webhook'и успешно очищены")
             else:
                 print(f"⚠️ Ошибка очистки webhook'ов: {response.status_code}")
-                
-            # Принудительное удаление всех обновлений
+            
+            # Принудительно получаем и сбрасываем ВСЕ обновления
             updates_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
-            response = requests.get(updates_url, params={"offset": -1, "limit": 1})
+            response = requests.get(updates_url, params={"offset": -1, "limit": 1000, "timeout": 1})
             if response.status_code == 200:
-                print("✅ Обновления очищены")
-                
-            # Принудительная очистка всех обновлений
+                print("✅ Все обновления очищены")
+            
+            # Уровень 3: МАКСИМАЛЬНО агрессивная очистка
             try:
+                # Принудительно удаляем ВСЕ webhook'и и обновления
                 response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
                                        json={"drop_pending_updates": True, "allowed_updates": []})
                 if response.status_code == 200:
                     print("✅ Все обновления принудительно удалены")
-            except:
-                pass
                 
-            # Принудительная остановка всех других экземпляров
-            try:
-                # Получаем все обновления и сбрасываем их
+                # Принудительно получаем ВСЕ обновления и сбрасываем их
                 response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
                                       params={"offset": -1, "limit": 1000, "timeout": 1})
                 if response.status_code == 200:
                     print("✅ Все другие экземпляры принудительно остановлены")
-            except:
-                pass
+                
+                # Дополнительная очистка - принудительно сбрасываем offset
+                response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                      params={"offset": 999999999, "limit": 1})
+                if response.status_code == 200:
+                    print("✅ Offset принудительно сброшен")
+                
+                # ПРИНУДИТЕЛЬНАЯ остановка всех других экземпляров
+                try:
+                    # Множественные запросы для принудительной остановки
+                    for i in range(5):
+                        response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                              params={"offset": -1, "limit": 1000, "timeout": 1})
+                        if response.status_code == 200:
+                            print(f"✅ Принудительная остановка экземпляра {i+1}/5")
+                        time.sleep(1)
+                    
+                    # Финальная очистка
+                    response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
+                                           json={"drop_pending_updates": True})
+                    if response.status_code == 200:
+                        print("✅ Финальная очистка завершена")
+                        
+                except Exception as e:
+                    print(f"⚠️ Ошибка при принудительной остановке: {e}")
+                    
+            except Exception as e:
+                print(f"⚠️ Ошибка при максимальной очистке: {e}")
                 
         except Exception as e:
             print(f"⚠️ Ошибка при дополнительной очистке webhook'ов: {e}")
             
     except Exception as e:
         print(f"⚠️ Ошибка при очистке webhook'ов: {e}")
-    
+
     # Запускаем автообновление в отдельном потоке
     auto_update_thread = threading.Thread(target=start_auto_update, daemon=True)
     auto_update_thread.start()
-    
+
     print("✅ Бот запущен!")
     print("📱 Автообновление сигналов каждые 10 секунд")
     print("🎰 Готов к работе!")
-    
-    # Запускаем бота с обработкой ошибок
+
+    # Запускаем бота с ОКОНЧАТЕЛЬНОЙ обработкой ошибок
     retry_count = 0
-    max_retries = 10
+    max_retries = 15  # Увеличиваем количество попыток
     use_webhook = False
-    
+
     while not shutdown_flag and retry_count < max_retries:
         try:
             if not use_webhook:
@@ -644,47 +671,71 @@ if __name__ == "__main__":
         except telebot.apihelper.ApiTelegramException as e:
             if e.error_code == 409:
                 retry_count += 1
-                print(f"⚠️ Обнаружен конфликт: другой экземпляр бота уже запущен (попытка {retry_count}/{max_retries})")
-                print("🧹 Принудительная очистка webhook'ов и обновлений...")
-                
-                # Агрессивная очистка webhook'ов
+                print(f"⚠️ ОБНАРУЖЕН КОНФЛИКТ: другой экземпляр бота уже запущен (попытка {retry_count}/{max_retries})")
+                print("🧹 ПРИНУДИТЕЛЬНАЯ ОКОНЧАТЕЛЬНАЯ очистка webhook'ов и обновлений...")
+
+                # ОКОНЧАТЕЛЬНАЯ агрессивная очистка webhook'ов
                 try:
+                    # Уровень 1: Очистка через telebot
                     bot.remove_webhook()
-                    time.sleep(3)
+                    time.sleep(5)
                     
-                    # Принудительная очистка через API
+                    # Уровень 2: Принудительная очистка через API
                     webhook_url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
                     response = requests.post(webhook_url, json={"drop_pending_updates": True})
                     
                     # Принудительное получение и сброс обновлений
                     updates_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
-                    response = requests.get(updates_url, params={"offset": -1, "limit": 1})
+                    response = requests.get(updates_url, params={"offset": -1, "limit": 1000})
                     
-                    # Максимально агрессивная очистка
+                    # Уровень 3: МАКСИМАЛЬНО агрессивная очистка
                     try:
-                        # Удаляем все webhook'и и обновления
+                        # Принудительно удаляем ВСЕ webhook'и и обновления
                         response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
                                                json={"drop_pending_updates": True, "allowed_updates": []})
                         
-                        # Принудительно получаем и сбрасываем все обновления
+                        # Принудительно получаем и сбрасываем ВСЕ обновления
                         response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
-                                              params={"offset": -1, "limit": 1000})
+                                              params={"offset": -1, "limit": 1000, "timeout": 1})
                         
-                        print("✅ Максимальная очистка завершена")
+                        # Дополнительная очистка - принудительно сбрасываем offset
+                        response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                              params={"offset": 999999999, "limit": 1})
+                        
+                        # ПРИНУДИТЕЛЬНАЯ остановка всех других экземпляров
+                        try:
+                            # Множественные запросы для принудительной остановки
+                            for i in range(5):
+                                response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                                      params={"offset": -1, "limit": 1000, "timeout": 1})
+                                if response.status_code == 200:
+                                    print(f"✅ Принудительная остановка экземпляра {i+1}/5")
+                                time.sleep(1)
+                            
+                            # Финальная очистка
+                            response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
+                                                   json={"drop_pending_updates": True})
+                            if response.status_code == 200:
+                                print("✅ Финальная очистка завершена")
+                                
+                        except Exception as e:
+                            print(f"⚠️ Ошибка при принудительной остановке: {e}")
+                        
+                        print("✅ ОКОНЧАТЕЛЬНАЯ очистка завершена")
                     except:
                         pass
                     
                     print("✅ Принудительная очистка завершена")
-                    time.sleep(5)
+                    time.sleep(10)  # Увеличиваем время ожидания
                 except Exception as cleanup_error:
                     print(f"⚠️ Ошибка при принудительной очистке: {cleanup_error}")
-                
+
                 # Пробуем переключиться на webhook после нескольких попыток
-                if retry_count >= 3 and not use_webhook:
+                if retry_count >= 5 and not use_webhook:
                     print("🔄 Переключение на webhook режим...")
                     use_webhook = True
-                
-                wait_time = min(60 * retry_count, 600)  # Увеличиваем время ожидания до 10 минут
+
+                wait_time = min(120 * retry_count, 1800)  # Увеличиваем время ожидания до 30 минут
                 print(f"🔄 Ожидание {wait_time} секунд перед повторной попыткой...")
                 time.sleep(wait_time)
                 continue
@@ -698,7 +749,7 @@ if __name__ == "__main__":
             print("🔄 Повторная попытка через 60 секунд...")
             time.sleep(60)
             continue
-    
+
     if retry_count >= max_retries:
         print("❌ Превышено максимальное количество попыток. Бот остановлен.")
     else:
