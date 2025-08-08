@@ -108,17 +108,8 @@ def init_user(user_id):
         'verification_method': None,
         'last_signal_time': 0,
         'waiting_for_id': False,
-        # Пошаговый режим сигнала
-        'current_signal': {
-            'number': None,
-            'coords': [],
-            'revealed': 0,
-            'created_at': 0,
-            'win_chance': None,
-            'bet_amount': None,
-            'clicks': None,
-            'multiplier': None
-        }
+        # Пошаговый режим сигнала: None, пока не создан новый сигнал
+        'current_signal': None
     }
 
 def get_main_menu(user_data: dict = None):
@@ -908,8 +899,8 @@ def callback_handler(call):
                              parse_mode='Markdown', reply_markup=markup)
     
     elif call.data == "next_step":
-        current_signal_data = users_data[user_id].get('current_signal', {})
-        if current_signal_data:
+        current_signal_data = users_data[user_id].get('current_signal')
+        if current_signal_data and isinstance(current_signal_data, dict) and current_signal_data.get('coords'):
             revealed_count = current_signal_data['revealed']
             total_steps = len(current_signal_data['coords'])
             
@@ -922,11 +913,11 @@ def callback_handler(call):
                 instr = format_instruction(current_signal_data['coords'][:revealed_count], revealed_count)
                 
                 next_step_text = (
-                    f"🎰 *VIP СИГНАЛ #{current_signal_data['number']}*\n\n"
-                    f"🔥 *Вероятность выигрыша:* {current_signal_data['win_chance']}%\n"
-                    f"💵 *Рекомендуемая ставка:* {current_signal_data['bet_amount']}₽\n"
-                    f"🎯 *Количество кликов:* {current_signal_data['clicks']}\n"
-                    f"📈 *Множитель:* x{current_signal_data['multiplier']}\n\n"
+                    f"🎰 *VIP СИГНАЛ #{current_signal_data.get('number','')}*\n\n"
+                    f"🔥 *Вероятность выигрыша:* {current_signal_data.get('win_chance','')}%\n"
+                    f"💵 *Рекомендуемая ставка:* {current_signal_data.get('bet_amount','')}₽\n"
+                    f"🎯 *Количество кликов:* {current_signal_data.get('clicks','')}\n"
+                    f"📈 *Множитель:* x{current_signal_data.get('multiplier','')}\n\n"
                     f"🗺️ *Сетка:*\n"
                     f"{grid}\n\n"
                     f"📌 {instr}\n\n"
@@ -946,11 +937,11 @@ def callback_handler(call):
             else:
                 # Если все шаги показаны, отправляем сообщение об окончании
                 final_text = (
-                    f"🎰 *VIP СИГНАЛ #{current_signal_data['number']}*\n\n"
-                    f"🔥 *Вероятность выигрыша:* {current_signal_data['win_chance']}%\n"
-                    f"💵 *Рекомендуемая ставка:* {current_signal_data['bet_amount']}₽\n"
-                    f"🎯 *Количество кликов:* {current_signal_data['clicks']}\n"
-                    f"📈 *Множитель:* x{current_signal_data['multiplier']}\n\n"
+                    f"🎰 *VIP СИГНАЛ #{current_signal_data.get('number','')}*\n\n"
+                    f"🔥 *Вероятность выигрыша:* {current_signal_data.get('win_chance','')}%\n"
+                    f"💵 *Рекомендуемая ставка:* {current_signal_data.get('bet_amount','')}₽\n"
+                    f"🎯 *Количество кликов:* {current_signal_data.get('clicks','')}\n"
+                    f"📈 *Множитель:* x{current_signal_data.get('multiplier','')}\n\n"
                     f"🎉 *СИГНАЛ ЗАВЕРШЕН!*\n"
                     f"*Вы успешно выполнили все шаги сигнала!*"
                 )
@@ -963,6 +954,17 @@ def callback_handler(call):
                 # Сбрасываем состояние сигнала после завершения
                 users_data[user_id]['current_signal'] = None
                 save_users_data(users_data)
+        else:
+            # Нет активного сигнала — предложим получить новый
+            hint_text = (
+                f"💡 *Нет активного сигнала.*\n\n"
+                f"Нажмите \"VIP Сигнал\" чтобы получить новый, либо включите автообновление в настройках."
+            )
+            markup = InlineKeyboardMarkup(row_width=2)
+            markup.add(InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"))
+            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+            bot.edit_message_text(hint_text, call.message.chat.id, call.message.message_id,
+                                 parse_mode='Markdown', reply_markup=markup)
     
     elif call.data == "tips":
         tips_text = (
@@ -977,16 +979,28 @@ def callback_handler(call):
                              parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
     
     elif call.data == "back_to_main":
-        main_text = (
-            f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
-            f"*Выберите действие:*\n\n"
-            f"🎯 *Регистрация* - зарегистрироваться в 1win\n"
-            f"🔐 *Ввести ID* - подтвердить ваш аккаунт\n"
-            f"⚡ *VIP Сигнал* - получить VIP прогноз\n"
-            f"📈 *Статистика* - ваши результаты\n"
-            f"💎 *Баланс* - текущий баланс\n"
-            f"⚙️ *Настройки* - настройки бота"
-        )
+        is_verified = users_data[user_id].get('id_verified', False)
+        if is_verified:
+            main_text = (
+                f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
+                f"*Выберите действие:*\n\n"
+                f"💡 *Советы* - полезные рекомендации\n"
+                f"⚡ *VIP Сигнал* - получить VIP прогноз\n"
+                f"📈 *Статистика* - ваши результаты\n"
+                f"💎 *Баланс* - текущий баланс\n"
+                f"⚙️ *Настройки* - настройки бота"
+            )
+        else:
+            main_text = (
+                f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
+                f"*Выберите действие:*\n\n"
+                f"🎯 *Регистрация* - зарегистрироваться в 1win\n"
+                f"🔐 *Ввести ID* - подтвердить ваш аккаунт\n"
+                f"⚡ *VIP Сигнал* - получить VIP прогноз\n"
+                f"📈 *Статистика* - ваши результаты\n"
+                f"💎 *Баланс* - текущий баланс\n"
+                f"⚙️ *Настройки* - настройки бота"
+            )
         
         bot.edit_message_text(main_text, call.message.chat.id, call.message.message_id,
                              parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
