@@ -113,9 +113,20 @@ def init_user(user_id):
     }
 
 def get_main_menu(user_data: dict = None):
-    """Создание главного меню, зависящего от статуса верификации"""
+    """Создание главного меню, зависящего от статуса верификации.
+    Принимает либо словарь user_data, либо строку user_id (тогда загрузит данные сам).
+    """
+    is_verified = False
+    # Поддержка передачи user_id вместо user_data
+    if isinstance(user_data, str):
+        uid = user_data
+        data = load_users_data()
+        data = ensure_user_data(uid, data)
+        is_verified = bool(data[uid].get('id_verified', False))
+    elif isinstance(user_data, dict) and user_data is not None:
+        is_verified = bool(user_data.get('id_verified', False))
+    
     markup = InlineKeyboardMarkup(row_width=2)
-    is_verified = bool(user_data and user_data.get('id_verified', False))
     if not is_verified:
         markup.add(
             InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
