@@ -7,6 +7,8 @@ import threading
 import requests
 from bs4 import BeautifulSoup
 import re
+import signal
+import sys
 
 import os
 
@@ -20,6 +22,17 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 # Файл для хранения данных пользователей
 USERS_FILE = "users_data.json"
+
+# Флаг для корректного завершения
+shutdown_flag = False
+
+def signal_handler(signum, frame):
+    """Обработчик сигналов для корректного завершения"""
+    global shutdown_flag
+    print("\n🛑 Получен сигнал завершения...")
+    shutdown_flag = True
+    bot.stop_polling()
+    sys.exit(0)
 
 def load_users_data():
     """Загрузка данных пользователей из файла"""
@@ -555,6 +568,18 @@ def start_auto_update():
 if __name__ == "__main__":
     print("🤖 Запуск VIP Сигналы Mines бота...")
     
+    # Регистрируем обработчики сигналов
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Очищаем webhook'и для предотвращения конфликтов
+    try:
+        print("🧹 Очистка webhook'ов...")
+        bot.remove_webhook()
+        time.sleep(1)
+    except Exception as e:
+        print(f"⚠️ Ошибка при очистке webhook'ов: {e}")
+    
     # Запускаем автообновление в отдельном потоке
     auto_update_thread = threading.Thread(target=start_auto_update, daemon=True)
     auto_update_thread.start()
@@ -563,5 +588,24 @@ if __name__ == "__main__":
     print("📱 Автообновление сигналов каждые 10 секунд")
     print("🎰 Готов к работе!")
     
-    # Запускаем бота
-    bot.polling(none_stop=True) 
+    # Запускаем бота с обработкой ошибок
+    while not shutdown_flag:
+        try:
+            print("🔄 Подключение к Telegram API...")
+            bot.polling(none_stop=True, timeout=60)
+        except telebot.apihelper.ApiTelegramException as e:
+            if e.error_code == 409:
+                print("⚠️ Обнаружен конфликт: другой экземпляр бота уже запущен")
+                print("🔄 Ожидание 30 секунд перед повторной попыткой...")
+                time.sleep(30)
+                continue
+            else:
+                print(f"❌ Ошибка Telegram API: {e}")
+                print("🔄 Повторная попытка через 60 секунд...")
+                time.sleep(60)
+                continue
+        except Exception as e:
+            print(f"❌ Неожиданная ошибка: {e}")
+            print("🔄 Повторная попытка через 60 секунд...")
+            time.sleep(60)
+            continue
