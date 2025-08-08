@@ -594,6 +594,25 @@ if __name__ == "__main__":
             if response.status_code == 200:
                 print("✅ Обновления очищены")
                 
+            # Принудительная очистка всех обновлений
+            try:
+                response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
+                                       json={"drop_pending_updates": True, "allowed_updates": []})
+                if response.status_code == 200:
+                    print("✅ Все обновления принудительно удалены")
+            except:
+                pass
+                
+            # Принудительная остановка всех других экземпляров
+            try:
+                # Получаем все обновления и сбрасываем их
+                response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                      params={"offset": -1, "limit": 1000, "timeout": 1})
+                if response.status_code == 200:
+                    print("✅ Все другие экземпляры принудительно остановлены")
+            except:
+                pass
+                
         except Exception as e:
             print(f"⚠️ Ошибка при дополнительной очистке webhook'ов: {e}")
             
@@ -640,6 +659,20 @@ if __name__ == "__main__":
                     # Принудительное получение и сброс обновлений
                     updates_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
                     response = requests.get(updates_url, params={"offset": -1, "limit": 1})
+                    
+                    # Максимально агрессивная очистка
+                    try:
+                        # Удаляем все webhook'и и обновления
+                        response = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook", 
+                                               json={"drop_pending_updates": True, "allowed_updates": []})
+                        
+                        # Принудительно получаем и сбрасываем все обновления
+                        response = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates", 
+                                              params={"offset": -1, "limit": 1000})
+                        
+                        print("✅ Максимальная очистка завершена")
+                    except:
+                        pass
                     
                     print("✅ Принудительная очистка завершена")
                     time.sleep(5)
