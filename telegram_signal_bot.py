@@ -576,7 +576,20 @@ if __name__ == "__main__":
     try:
         print("🧹 Очистка webhook'ов...")
         bot.remove_webhook()
-        time.sleep(1)
+        time.sleep(2)
+        
+        # Дополнительная очистка через API
+        try:
+            import requests
+            webhook_url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
+            response = requests.post(webhook_url, json={"drop_pending_updates": True})
+            if response.status_code == 200:
+                print("✅ Webhook'и успешно очищены")
+            else:
+                print(f"⚠️ Ошибка очистки webhook'ов: {response.status_code}")
+        except Exception as e:
+            print(f"⚠️ Ошибка при дополнительной очистке webhook'ов: {e}")
+            
     except Exception as e:
         print(f"⚠️ Ошибка при очистке webhook'ов: {e}")
     
@@ -589,15 +602,29 @@ if __name__ == "__main__":
     print("🎰 Готов к работе!")
     
     # Запускаем бота с обработкой ошибок
-    while not shutdown_flag:
+    retry_count = 0
+    max_retries = 10
+    
+    while not shutdown_flag and retry_count < max_retries:
         try:
             print("🔄 Подключение к Telegram API...")
             bot.polling(none_stop=True, timeout=60)
         except telebot.apihelper.ApiTelegramException as e:
             if e.error_code == 409:
-                print("⚠️ Обнаружен конфликт: другой экземпляр бота уже запущен")
-                print("🔄 Ожидание 30 секунд перед повторной попыткой...")
-                time.sleep(30)
+                retry_count += 1
+                print(f"⚠️ Обнаружен конфликт: другой экземпляр бота уже запущен (попытка {retry_count}/{max_retries})")
+                print("🧹 Очистка webhook'ов и ожидание...")
+                
+                # Дополнительная очистка webhook'ов
+                try:
+                    bot.remove_webhook()
+                    time.sleep(5)
+                except:
+                    pass
+                
+                wait_time = min(30 * retry_count, 300)  # Увеличиваем время ожидания
+                print(f"🔄 Ожидание {wait_time} секунд перед повторной попыткой...")
+                time.sleep(wait_time)
                 continue
             else:
                 print(f"❌ Ошибка Telegram API: {e}")
@@ -609,3 +636,8 @@ if __name__ == "__main__":
             print("🔄 Повторная попытка через 60 секунд...")
             time.sleep(60)
             continue
+    
+    if retry_count >= max_retries:
+        print("❌ Превышено максимальное количество попыток. Бот остановлен.")
+    else:
+        print("🛑 Бот остановлен пользователем.")
