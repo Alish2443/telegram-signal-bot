@@ -72,7 +72,7 @@ def ensure_user_data(user_id, users_data):
         user_data = users_data[user_id]
         required_fields = ['registered', 'id_verified', 'auto_update', 'current_balance', 
                           'total_wins', 'total_losses', 'real_id', 'verification_method', 
-                          'last_signal_time', 'waiting_for_id']
+                          'last_signal_time', 'waiting_for_id', 'current_signal']
         
         missing_fields = []
         for field in required_fields:
@@ -98,7 +98,18 @@ def init_user(user_id):
         'real_id': None,
         'verification_method': None,
         'last_signal_time': 0,
-        'waiting_for_id': False
+        'waiting_for_id': False,
+        # Пошаговый режим сигнала
+        'current_signal': {
+            'number': None,
+            'coords': [],
+            'revealed': 0,
+            'created_at': 0,
+            'win_chance': None,
+            'bet_amount': None,
+            'clicks': None,
+            'multiplier': None
+        }
     }
 
 def get_main_menu():
@@ -141,6 +152,39 @@ def generate_signal():
         'clicks': clicks,
         'multiplier': multiplier
     }
+
+# ===== Новые помощники для сетки и пошаговых координат =====
+LETTERS = ["A", "B", "C", "D", "E"]
+NUMBERS = ["1", "2", "3", "4", "5"]
+
+def generate_coords_sequence(steps_count: int):
+    """Генерирует уникальную последовательность координат вида A2, C4..."""
+    cells = [f"{letter}{number}" for letter in LETTERS for number in NUMBERS]
+    random.shuffle(cells)
+    return cells[:steps_count]
+
+def render_grid_with_labels():
+    """Возвращает текст с подписью осей: верх 1–5, слева A–E."""
+    header = "    " + "  ".join(NUMBERS)
+    rows = []
+    for idx, letter in enumerate(LETTERS):
+        rows.append(f"{letter} | ⬛ ⬛ ⬛ ⬛ ⬛")
+    grid_text = "\n".join([header] + rows)
+    return grid_text
+
+def format_instruction(coords: list, revealed: int):
+    """Формирует строку инструкции, показывая только открытые шаги и многоточие для следующих."""
+    total = len(coords)
+    if total == 0:
+        return ""
+    if revealed <= 0:
+        preview = f"{coords[0]} → …"
+    elif revealed >= total:
+        preview = " → ".join(coords[:total])
+    else:
+        preview = " → ".join(coords[:revealed]) + " → …"
+    progress = f"(открыто {revealed} из {total})"
+    return f"Нажимай по порядку: {preview} \n{progress}"
 
 # Real ID verification via 1win API and web scraping
 def real_id_verification(input_id):
@@ -640,9 +684,23 @@ def callback_handler(call):
                 bot.edit_message_text(cooldown_text, call.message.chat.id, call.message.message_id,
                                      parse_mode='Markdown', reply_markup=markup)
             else:
-                # Генерируем новый сигнал
+                # Генерируем новый сигнал и пошаговые координаты
                 signal = generate_signal()
                 signal_number = random.randint(1000, 9999)
+                coords_sequence = generate_coords_sequence(signal['clicks'])
+                users_data[user_id]['current_signal'] = {
+                    'number': signal_number,
+                    'coords': coords_sequence,
+                    'revealed': 0,
+                    'created_at': current_time,
+                    'win_chance': signal['win_chance'],
+                    'bet_amount': signal['bet_amount'],
+                    'clicks': signal['clicks'],
+                    'multiplier': signal['multiplier']
+                }
+                
+                grid = render_grid_with_labels()
+                instr = format_instruction(coords_sequence, 0)
                 
                 signal_text = (
                     f"🎰 *VIP СИГНАЛ #{signal_number}*\n\n"
@@ -650,11 +708,14 @@ def callback_handler(call):
                     f"💵 *Рекомендуемая ставка:* {signal['bet_amount']}₽\n"
                     f"🎯 *Количество кликов:* {signal['clicks']}\n"
                     f"📈 *Множитель:* x{signal['multiplier']}\n\n"
-                    f"⚡ *Следующее обновление через 10 секунд*\n"
-                    f"🕐 *Время:* {time.strftime('%H:%M:%S')}"
+                    f"🗺️ *Сетка:*\n"
+                    f"{grid}\n\n"
+                    f"📌 {instr}\n\n"
+                    f"▶️ Нажмите кнопку ниже, чтобы показать следующий шаг"
                 )
                 
                 markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(InlineKeyboardButton("➡️ Показать следующий шаг", callback_data="next_step"))
                 markup.add(
                     InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
                     InlineKeyboardButton("📊 Статистика", callback_data="stats")
@@ -814,6 +875,63 @@ def callback_handler(call):
         
         bot.edit_message_text(wait_text, call.message.chat.id, call.message.message_id,
                              parse_mode='Markdown', reply_markup=markup)
+    
+    elif call.data == "next_step":
+        current_signal_data = users_data[user_id].get('current_signal', {})
+        if current_signal_data:
+            revealed_count = current_signal_data['revealed']
+            total_steps = len(current_signal_data['coords'])
+            
+            if revealed_count < total_steps:
+                revealed_count += 1
+                current_signal_data['revealed'] = revealed_count
+                save_users_data(users_data)
+                
+                grid = render_grid_with_labels()
+                instr = format_instruction(current_signal_data['coords'][:revealed_count], revealed_count)
+                
+                next_step_text = (
+                    f"🎰 *VIP СИГНАЛ #{current_signal_data['number']}*\n\n"
+                    f"🔥 *Вероятность выигрыша:* {current_signal_data['win_chance']}%\n"
+                    f"💵 *Рекомендуемая ставка:* {current_signal_data['bet_amount']}₽\n"
+                    f"🎯 *Количество кликов:* {current_signal_data['clicks']}\n"
+                    f"📈 *Множитель:* x{current_signal_data['multiplier']}\n\n"
+                    f"🗺️ *Сетка:*\n"
+                    f"{grid}\n\n"
+                    f"📌 {instr}\n\n"
+                    f"▶️ Нажмите кнопку ниже, чтобы показать следующий шаг"
+                )
+                
+                markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(InlineKeyboardButton("➡️ Показать следующий шаг", callback_data="next_step"))
+                markup.add(
+                    InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
+                    InlineKeyboardButton("📊 Статистика", callback_data="stats")
+                )
+                markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+                
+                bot.edit_message_text(next_step_text, call.message.chat.id, call.message.message_id,
+                                     parse_mode='Markdown', reply_markup=markup)
+            else:
+                # Если все шаги показаны, отправляем сообщение об окончании
+                final_text = (
+                    f"🎰 *VIP СИГНАЛ #{current_signal_data['number']}*\n\n"
+                    f"🔥 *Вероятность выигрыша:* {current_signal_data['win_chance']}%\n"
+                    f"💵 *Рекомендуемая ставка:* {current_signal_data['bet_amount']}₽\n"
+                    f"🎯 *Количество кликов:* {current_signal_data['clicks']}\n"
+                    f"📈 *Множитель:* x{current_signal_data['multiplier']}\n\n"
+                    f"🎉 *СИГНАЛ ЗАВЕРШЕН!*\n"
+                    f"*Вы успешно выполнили все шаги сигнала!*"
+                )
+                
+                markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+                
+                bot.edit_message_text(final_text, call.message.chat.id, call.message.message_id,
+                                     parse_mode='Markdown', reply_markup=markup)
+                # Сбрасываем состояние сигнала после завершения
+                users_data[user_id]['current_signal'] = None
+                save_users_data(users_data)
     
     elif call.data == "back_to_main":
         main_text = (
