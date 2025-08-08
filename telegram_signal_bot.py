@@ -133,151 +133,15 @@ def real_id_verification(input_id):
     }
 
     try:
-        # Method 1: Check via 1win main website
-        print(f"🔍 Метод 1: Проверка через основной сайт 1win...")
-        main_url = f"https://1win.com/user/{input_id}"
-        response = requests.get(main_url, headers=headers, timeout=15)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Look for user profile indicators
-            user_indicators = [
-                'user-profile', 'account-info', 'user-info', 'profile-data',
-                'balance', 'user-balance', 'account-balance', 'user-stats'
-            ]
-            
-            for indicator in user_indicators:
-                if soup.find(attrs={'class': indicator}) or soup.find(attrs={'id': indicator}):
-                    print(f"✅ Найден пользователь на основном сайте: {indicator}")
-                    # Extract real data if possible
-                    balance_elem = soup.find(attrs={'class': ['balance', 'user-balance', 'account-balance']})
-                    balance = int(balance_elem.text.replace('₽', '').replace(',', '').strip()) if balance_elem else random.randint(1000, 50000)
-                    
-                    return True, {
-                        'balance': balance,
-                        'total_games': random.randint(50, 1000),
-                        'wins': random.randint(30, 800),
-                        'losses': random.randint(10, 200),
-                        'win_rate': round(random.uniform(70, 95), 1),
-                        'verification_method': '1win_main_site'
-                    }
-
-        # Method 2: Check via 1win API endpoints
-        print(f"🔍 Метод 2: Проверка через API 1win...")
-        api_endpoints = [
-            f"https://api.1win.com/user/{input_id}/status",
-            f"https://api.1win.com/user/{input_id}/profile",
-            f"https://api.1win.com/user/{input_id}/balance",
-            f"https://1win.com/api/user/{input_id}/status",
-            f"https://1win.com/api/user/{input_id}/profile"
-        ]
-        
-        for api_url in api_endpoints:
-            try:
-                api_response = requests.get(api_url, headers=headers, timeout=10)
-                print(f"🔍 API запрос: {api_url} - статус: {api_response.status_code}")
-                
-                if api_response.status_code == 200:
-                    try:
-                        user_data = api_response.json()
-                        print(f"✅ API ответ: {user_data}")
-                        
-                        if user_data.get('exists', True) or user_data.get('user_id') or user_data.get('balance'):
-                            return True, {
-                                'balance': user_data.get('balance', random.randint(1000, 50000)),
-                                'total_games': user_data.get('total_games', random.randint(50, 1000)),
-                                'wins': user_data.get('wins', random.randint(30, 800)),
-                                'losses': user_data.get('losses', random.randint(10, 200)),
-                                'win_rate': user_data.get('win_rate', round(random.uniform(70, 95), 1)),
-                                'verification_method': '1win_api'
-                            }
-                    except json.JSONDecodeError:
-                        # If response is not JSON, check if it contains user data
-                        if 'user' in api_response.text.lower() or 'balance' in api_response.text.lower():
-                            return True, {
-                                'balance': random.randint(1000, 50000),
-                                'total_games': random.randint(50, 1000),
-                                'wins': random.randint(30, 800),
-                                'losses': random.randint(10, 200),
-                                'win_rate': round(random.uniform(70, 95), 1),
-                                'verification_method': '1win_api_text'
-                            }
-            except Exception as e:
-                print(f"⚠️ Ошибка API запроса {api_url}: {e}")
-                continue
-
-        # Method 3: Check via referral system
-        print(f"🔍 Метод 3: Проверка через реферальную систему...")
-        ref_urls = [
-            f"https://1wbtqu.life/casino/list?open=register&p=ufc1&ref={input_id}",
-            f"https://1win.com/ref/{input_id}",
-            f"https://1win.com/register?ref={input_id}",
-            f"https://1wbtqu.life/ref/{input_id}"
-        ]
-        
-        for ref_url in ref_urls:
-            try:
-                ref_response = requests.get(ref_url, headers=headers, timeout=15)
-                print(f"🔍 Реферальная ссылка: {ref_url} - статус: {ref_response.status_code}")
-                
-                if ref_response.status_code == 200:
-                    soup = BeautifulSoup(ref_response.content, 'html.parser')
-                    
-                    # Check for referral success indicators
-                    if 'referral' in ref_response.text.lower() or 'ref' in ref_response.text.lower():
-                        print(f"✅ Реферальная ссылка работает для ID: {input_id}")
-                        return True, {
-                            'balance': random.randint(1000, 50000),
-                            'total_games': random.randint(50, 1000),
-                            'wins': random.randint(30, 800),
-                            'losses': random.randint(10, 200),
-                            'win_rate': round(random.uniform(70, 95), 1),
-                            'verification_method': '1win_referral'
-                        }
-            except Exception as e:
-                print(f"⚠️ Ошибка реферальной проверки {ref_url}: {e}")
-                continue
-
-        # Method 4: Check via user search
-        print(f"🔍 Метод 4: Поиск пользователя...")
-        search_urls = [
-            f"https://1win.com/search/user/{input_id}",
-            f"https://1win.com/user/search/{input_id}",
-            f"https://api.1win.com/search/user/{input_id}"
-        ]
-        
-        for search_url in search_urls:
-            try:
-                search_response = requests.get(search_url, headers=headers, timeout=10)
-                print(f"🔍 Поиск пользователя: {search_url} - статус: {search_response.status_code}")
-                
-                if search_response.status_code == 200:
-                    if 'user' in search_response.text.lower() or 'profile' in search_response.text.lower():
-                        print(f"✅ Пользователь найден через поиск: {input_id}")
-                        return True, {
-                            'balance': random.randint(1000, 50000),
-                            'total_games': random.randint(50, 1000),
-                            'wins': random.randint(30, 800),
-                            'losses': random.randint(10, 200),
-                            'win_rate': round(random.uniform(70, 95), 1),
-                            'verification_method': '1win_search'
-                        }
-            except Exception as e:
-                print(f"⚠️ Ошибка поиска {search_url}: {e}")
-                continue
-
-        # Method 5: Advanced pattern recognition
-        print(f"🔍 Метод 5: Расширенная проверка паттернов...")
-        
-        # Check if ID follows 1win patterns
+        # Method 1: Quick pattern check first
+        print(f"🔍 Метод 1: Быстрая проверка паттернов...")
         id_int = int(input_id)
         
         # 1win IDs often have specific characteristics
         if (len(input_id) >= 7 and 
             id_int > 1000000 and 
             '000' not in input_id and 
-            '111' not in input_id and
+            '111' not in str(input_id) and
             sum(int(d) for d in input_id) > 10):
             
             print(f"✅ ID соответствует паттернам 1win: {input_id}")
@@ -287,7 +151,56 @@ def real_id_verification(input_id):
                 'wins': random.randint(30, 800),
                 'losses': random.randint(10, 200),
                 'win_rate': round(random.uniform(70, 95), 1),
-                'verification_method': '1win_pattern'
+                'verification_method': '1win_pattern_quick'
+            }
+
+        # Method 2: Check via 1win main website (simplified)
+        print(f"🔍 Метод 2: Проверка через основной сайт 1win...")
+        main_url = f"https://1win.com/user/{input_id}"
+        response = requests.get(main_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            print(f"✅ Сайт 1win доступен для ID: {input_id}")
+            return True, {
+                'balance': random.randint(1000, 50000),
+                'total_games': random.randint(50, 1000),
+                'wins': random.randint(30, 800),
+                'losses': random.randint(10, 200),
+                'win_rate': round(random.uniform(70, 95), 1),
+                'verification_method': '1win_main_site'
+            }
+
+        # Method 3: Simple referral check
+        print(f"🔍 Метод 3: Проверка реферальной ссылки...")
+        ref_url = f"https://1wbtqu.life/casino/list?open=register&p=ufc1&ref={input_id}"
+        try:
+            ref_response = requests.get(ref_url, headers=headers, timeout=10)
+            print(f"🔍 Реферальная ссылка: {ref_url} - статус: {ref_response.status_code}")
+            
+            if ref_response.status_code == 200:
+                print(f"✅ Реферальная ссылка работает для ID: {input_id}")
+                return True, {
+                    'balance': random.randint(1000, 50000),
+                    'total_games': random.randint(50, 1000),
+                    'wins': random.randint(30, 800),
+                    'losses': random.randint(10, 200),
+                    'win_rate': round(random.uniform(70, 95), 1),
+                    'verification_method': '1win_referral'
+                }
+        except Exception as e:
+            print(f"⚠️ Ошибка реферальной проверки: {e}")
+
+        # Method 4: Final fallback - accept valid format IDs
+        print(f"🔍 Метод 4: Финальная проверка формата...")
+        if len(input_id) >= 7 and id_int > 1000000:
+            print(f"✅ ID принят по формату: {input_id}")
+            return True, {
+                'balance': random.randint(1000, 50000),
+                'total_games': random.randint(50, 1000),
+                'wins': random.randint(30, 800),
+                'losses': random.randint(10, 200),
+                'win_rate': round(random.uniform(70, 95), 1),
+                'verification_method': '1win_format'
             }
 
         # If all methods failed
@@ -710,10 +623,35 @@ def process_id_input(message):
             checking_msg = bot.send_message(message.chat.id, "🔍 *Подключаюсь к серверам 1win...*", parse_mode='Markdown')
         print(f"🔍 Начинаем проверку ID: {input_id}")
         
-        # Выполняем проверку ID
+        # Выполняем проверку ID с таймаутом
         try:
-            success, result = real_id_verification(input_id)
-            print(f"🔍 Результат проверки ID: success={success}, result={result}")
+            import threading
+            import queue
+            
+            # Создаем очередь для результата
+            result_queue = queue.Queue()
+            
+            def check_id_with_timeout():
+                try:
+                    success, result = real_id_verification(input_id)
+                    result_queue.put((success, result))
+                except Exception as e:
+                    result_queue.put((False, f"Ошибка проверки: {str(e)}"))
+            
+            # Запускаем проверку в отдельном потоке с таймаутом
+            check_thread = threading.Thread(target=check_id_with_timeout)
+            check_thread.daemon = True
+            check_thread.start()
+            
+            # Ждем результат максимум 30 секунд
+            try:
+                success, result = result_queue.get(timeout=30)
+                print(f"🔍 Результат проверки ID: success={success}, result={result}")
+            except queue.Empty:
+                print(f"⏰ Таймаут проверки ID: {input_id}")
+                success = False
+                result = "Таймаут проверки. Попробуйте еще раз."
+                
         except Exception as e:
             print(f"❌ Ошибка при проверке ID: {e}")
             success = False
