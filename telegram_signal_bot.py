@@ -121,19 +121,27 @@ def init_user(user_id):
         }
     }
 
-def get_main_menu():
-    """Создание красивого главного меню"""
+def get_main_menu(user_data: dict = None):
+    """Создание главного меню, зависящего от статуса верификации"""
     markup = InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
-        InlineKeyboardButton("🔐 Ввести ID", callback_data="enter_id")
-    )
+    is_verified = bool(user_data and user_data.get('id_verified', False))
+    if not is_verified:
+        markup.add(
+            InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
+            InlineKeyboardButton("🔐 Ввести ID", callback_data="enter_id")
+        )
+    else:
+        # Для верифицированных вместо регистрации — советы
+        markup.add(
+            InlineKeyboardButton("💡 Советы", callback_data="tips"),
+            InlineKeyboardButton("📈 Статистика", callback_data="stats")
+        )
+    # Общие пункты
     markup.add(
         InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
-        InlineKeyboardButton("📈 Статистика", callback_data="stats")
+        InlineKeyboardButton("💎 Баланс", callback_data="balance")
     )
     markup.add(
-        InlineKeyboardButton("💎 Баланс", callback_data="balance"),
         InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
     )
     return markup
@@ -576,7 +584,7 @@ def start_command(message):
             f"*Используйте кнопки меню для навигации по боту.*"
         )
     
-    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu())
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
 
 # Обработчик команды /status
 @bot.message_handler(commands=['status'])
@@ -956,6 +964,18 @@ def callback_handler(call):
                 users_data[user_id]['current_signal'] = None
                 save_users_data(users_data)
     
+    elif call.data == "tips":
+        tips_text = (
+            f"💡 *Советы для получения VIP сигналов:*\n\n"
+            f"• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
+            f"• Держите разумный размер ставки относительно банка.\n"
+            f"• Не пропускайте шаги в последовательности координат.\n"
+            f"• При необходимости включите автообновление в настройках.\n\n"
+            f"▶️ Нажмите \"VIP Сигнал\" для получения нового сигнала."
+        )
+        bot.edit_message_text(tips_text, call.message.chat.id, call.message.message_id,
+                             parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+    
     elif call.data == "back_to_main":
         main_text = (
             f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
@@ -969,7 +989,7 @@ def callback_handler(call):
         )
         
         bot.edit_message_text(main_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=get_main_menu())
+                             parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
 
 # Обработчик текстовых сообщений (для ввода ID)
 @bot.message_handler(func=lambda message: True)
@@ -1152,7 +1172,29 @@ def process_id_input(message):
                 f"2️⃣ Введите ваш ID\n"
                 f"3️⃣ Получайте VIP сигналы!"
             )
-        bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu())
+        bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+
+# Обработчик команды /tips
+@bot.message_handler(commands=['tips'])
+def tips_command(message):
+    user_id = str(message.from_user.id)
+    users_data = load_users_data()
+    users_data = ensure_user_data(user_id, users_data)
+    tips_text = (
+        f"💡 *Советы для получения VIP сигналов:*\n\n"
+        f"1️⃣ *Зарегистрируйтесь по партнерской ссылке*: "
+        f"Это гарантирует вам доступ к самым точным сигналам и бонусам.\n\n"
+        f"2️⃣ *Введите ваш ID*: "
+        f"Подтвердите свою учетную запись 1win, чтобы получить доступ к вашим данным и сигналам.\n\n"
+        f"3️⃣ *Включите автообновление*: "
+        f"Это позволит вам получать сигналы автоматически, не ждая каждый раз.\n\n"
+        f"4️⃣ *Следите за балансом*: "
+        f"Убедитесь, что у вас достаточно средств для ставок.\n\n"
+        f"5️⃣ *Выполняйте шаги сигнала*: "
+        f"Следуйте пошаговой инструкции, чтобы увеличить шансы на выигрыш.\n\n"
+        f"🎯 *Нажмите \"VIP Сигнал\" для получения первого сигнала!*"
+    )
+    bot.reply_to(message, tips_text, parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
 
 # Запуск автообновления в отдельном потоке
 def start_auto_update():
