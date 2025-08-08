@@ -116,36 +116,20 @@ def get_main_menu(user_data: dict = None):
     """Создание главного меню, зависящего от статуса верификации.
     Принимает либо словарь user_data, либо строку user_id (тогда загрузит данные сам).
     """
-    is_verified = False
-    # Поддержка передачи user_id вместо user_data
-    if isinstance(user_data, str):
-        uid = user_data
-        data = load_users_data()
-        data = ensure_user_data(uid, data)
-        is_verified = bool(data[uid].get('id_verified', False))
-    elif isinstance(user_data, dict) and user_data is not None:
-        is_verified = bool(user_data.get('id_verified', False))
-    
+    # Ранее использовали is_verified для условных кнопок. Теперь кнопки регистрации убраны полностью.
     markup = InlineKeyboardMarkup(row_width=2)
-    if not is_verified:
-        markup.add(
-            InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
-            InlineKeyboardButton("🔐 Ввести ID", callback_data="enter_id")
-        )
-    else:
-        # Для верифицированных вместо регистрации — советы
-        markup.add(
-            InlineKeyboardButton("💡 Советы", callback_data="tips"),
-            InlineKeyboardButton("📈 Статистика", callback_data="stats")
-        )
-    # Общие пункты
+    # Первый ряд: Советы и Статистика
+    markup.add(
+        InlineKeyboardButton("💡 Советы", callback_data="tips"),
+        InlineKeyboardButton("📈 Статистика", callback_data="stats")
+    )
+    # Второй ряд: VIP Сигнал и Баланс
     markup.add(
         InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
         InlineKeyboardButton("💎 Баланс", callback_data="balance")
     )
-    markup.add(
-        InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
-    )
+    # Третий ряд: Настройки
+    markup.add(InlineKeyboardButton("⚙️ Настройки", callback_data="settings"))
     return markup
 
 def generate_signal():
@@ -631,66 +615,28 @@ def callback_handler(call):
     users_data = ensure_user_data(user_id, users_data)
     
     if call.data == "register":
-        if users_data[user_id].get('id_verified', False):
-            already_text = (
-                f"✅ *Вы уже верифицированы.*\n\n"
-                f"💡 Откройте раздел *Советы* или получите *VIP Сигнал*."
-            )
-            bot.edit_message_text(already_text, call.message.chat.id, call.message.message_id,
-                                 parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
-        else:
-            register_text = (
-                f"📝 *Регистрация в 1win*\n\n"
-                f"🔗 *Партнерская ссылка:*\n"
-                f"`{PARTNER_LINK}`\n\n"
-                f"🎁 *Промокод:* `{PROMO_CODE}`\n\n"
-                f"*Инструкция:*\n"
-                f"1️⃣ Перейдите по ссылке выше\n"
-                f"2️⃣ Зарегистрируйтесь\n"
-                f"3️⃣ Введите промокод при регистрации\n"
-                f"4️⃣ Скопируйте ваш ID\n"
-                f"5️⃣ Вернитесь в бот и введите ID\n\n"
-                f"*После регистрации нажмите \"Ввести ID\"*"
-            )
-            
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("🔍 Ввести ID", callback_data="enter_id"))
-            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-            
-            bot.edit_message_text(register_text, call.message.chat.id, call.message.message_id,
-                                 parse_mode='Markdown', reply_markup=markup)
-            
-            users_data[user_id]['registered'] = True
-            save_users_data(users_data)
+        tips_text = (
+            f"💡 *Советы для получения VIP сигналов:*\n\n"
+            f"• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
+            f"• Держите разумный размер ставки относительно банка.\n"
+            f"• Не пропускайте шаги в последовательности координат.\n"
+            f"• При необходимости включите автообновление в настройках.\n\n"
+            f"▶️ Нажмите \"VIP Сигнал\" для получения нового сигнала."
+        )
+        bot.edit_message_text(tips_text, call.message.chat.id, call.message.message_id,
+                             parse_mode='Markdown', reply_markup=get_main_menu())
     
     elif call.data == "enter_id":
-        if users_data[user_id].get('id_verified', False):
-            already_text = (
-                f"✅ *Ваш ID уже подтвержден.*\n\n"
-                f"💡 Перейдите в *Советы* или получите *VIP Сигнал*."
-            )
-            bot.edit_message_text(already_text, call.message.chat.id, call.message.message_id,
-                                 parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
-        else:
-            enter_id_text = (
-                f"🔍 *Введите ваш ID*\n\n"
-                f"*ID можно найти:*\n"
-                f"• В личном кабинете 1win\n"
-                f"• В настройках профиля\n"
-                f"• В разделе \"Мой аккаунт\"\n\n"
-                f"*Отправьте ID в следующем сообщении*"
-            )
-            
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-            
-            bot.edit_message_text(enter_id_text, call.message.chat.id, call.message.message_id,
-                                 parse_mode='Markdown', reply_markup=markup)
-            
-            # Устанавливаем состояние ожидания ID
-            users_data[user_id]['waiting_for_id'] = True
-            save_users_data(users_data)
-            print(f"✅ Установлен флаг waiting_for_id для пользователя {user_id}")
+        tips_text = (
+            f"💡 *Советы для получения VIP сигналов:*\n\n"
+            f"• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
+            f"• Держите разумный размер ставки относительно банка.\n"
+            f"• Не пропускайте шаги в последовательности координат.\n"
+            f"• При необходимости включите автообновление в настройках.\n\n"
+            f"▶️ Нажмите \"VIP Сигнал\" для получения нового сигнала."
+        )
+        bot.edit_message_text(tips_text, call.message.chat.id, call.message.message_id,
+                             parse_mode='Markdown', reply_markup=get_main_menu())
     
     elif call.data == "get_signal":
         if not users_data[user_id].get('id_verified', False):
