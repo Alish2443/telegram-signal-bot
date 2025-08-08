@@ -30,7 +30,7 @@ PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # Файл для хранения данных пользователей
-USERS_FILE = "Z:/telegram_bot_data/users_data.json"
+USERS_FILE = os.environ.get("USERS_FILE", "/workspace/data/users_data.json")
 
 # Флаг для корректного завершения
 shutdown_flag = False
