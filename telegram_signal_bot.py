@@ -61,6 +61,31 @@ def save_users_data(users_data):
         json.dump(users_data, f, ensure_ascii=False, indent=2)
     print(f"✅ Сохранено {len(users_data)} пользователей")
 
+def ensure_user_data(user_id, users_data):
+    """Проверка и восстановление данных пользователя"""
+    if user_id not in users_data:
+        users_data[user_id] = init_user(user_id)
+        print(f"🆕 Создан новый пользователь: {user_id}")
+        save_users_data(users_data)
+    else:
+        # Проверяем, есть ли все необходимые поля
+        user_data = users_data[user_id]
+        required_fields = ['registered', 'id_verified', 'auto_update', 'current_balance', 
+                          'total_wins', 'total_losses', 'real_id', 'verification_method', 
+                          'last_signal_time', 'waiting_for_id']
+        
+        missing_fields = []
+        for field in required_fields:
+            if field not in user_data:
+                missing_fields.append(field)
+                user_data[field] = init_user(user_id)[field]
+        
+        if missing_fields:
+            print(f"🔧 Восстановлены недостающие поля для пользователя {user_id}: {missing_fields}")
+            save_users_data(users_data)
+    
+    return users_data
+
 def init_user(user_id):
     """Инициализация нового пользователя"""
     return {
@@ -71,7 +96,9 @@ def init_user(user_id):
         'total_wins': 0,
         'total_losses': 0,
         'real_id': None,
-        'verification_method': None
+        'verification_method': None,
+        'last_signal_time': 0,
+        'waiting_for_id': False
     }
 
 def get_main_menu():
@@ -456,34 +483,75 @@ def auto_update_signals():
 def start_command(message):
     user_id = str(message.from_user.id)
     users_data = load_users_data()
+    users_data = ensure_user_data(user_id, users_data)
     
-    if user_id not in users_data:
-        users_data[user_id] = init_user(user_id)
-        save_users_data(users_data)
-    
-    welcome_text = (
-        f"🎰 *Добро пожаловать в VIP Сигналы Mines!*\n\n"
-        f"🔥 *Эксклюзивные сигналы для игры Mines*\n"
-        f"📈 *Высокая точность прогнозов*\n"
-        f"💰 *Максимальная прибыль*\n\n"
-        f"*Для начала работы:*\n"
-        f"1️⃣ Зарегистрируйтесь по партнерской ссылке\n"
-        f"2️⃣ Введите ваш ID\n"
-        f"3️⃣ Получайте VIP сигналы!\n\n"
-        f"*Используйте кнопки меню для навигации по боту.*"
-    )
+    # Проверяем, был ли пользователь уже верифицирован
+    if users_data[user_id].get('id_verified', False):
+        # Пользователь уже верифицирован
+        welcome_text = (
+            f"🎰 *С возвращением в VIP Сигналы Mines!*\n\n"
+            f"✅ *Ваш ID:* `{users_data[user_id].get('real_id', 'Неизвестно')}`\n"
+            f"🔍 *Статус:* Верифицирован\n"
+            f"🔄 *Автообновление:* {'Включено' if users_data[user_id].get('auto_update', False) else 'Выключено'}\n\n"
+            f"🎯 *Выберите действие:*"
+        )
+    else:
+        # Новый пользователь или не верифицированный
+        welcome_text = (
+            f"🎰 *Добро пожаловать в VIP Сигналы Mines!*\n\n"
+            f"🔥 *Эксклюзивные сигналы для игры Mines*\n"
+            f"📈 *Высокая точность прогнозов*\n"
+            f"💰 *Максимальная прибыль*\n\n"
+            f"*Для начала работы:*\n"
+            f"1️⃣ Зарегистрируйтесь по партнерской ссылке\n"
+            f"2️⃣ Введите ваш ID\n"
+            f"3️⃣ Получайте VIP сигналы!\n\n"
+            f"*Используйте кнопки меню для навигации по боту.*"
+        )
     
     bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu())
+
+# Обработчик команды /status
+@bot.message_handler(commands=['status'])
+def status_command(message):
+    user_id = str(message.from_user.id)
+    users_data = load_users_data()
+    users_data = ensure_user_data(user_id, users_data)
+    
+    user_data = users_data[user_id]
+    
+    status_text = (
+        f"📊 *СТАТУС ПОЛЬЗОВАТЕЛЯ*\n\n"
+        f"🆔 *ID пользователя:* `{user_id}`\n"
+        f"✅ *Верифицирован:* {'Да' if user_data.get('id_verified', False) else 'Нет'}\n"
+    )
+    
+    if user_data.get('id_verified', False):
+        status_text += (
+            f"🎯 *1win ID:* `{user_data.get('real_id', 'Неизвестно')}`\n"
+            f"🔍 *Метод проверки:* {user_data.get('verification_method', 'Неизвестно')}\n"
+            f"🔄 *Автообновление:* {'Включено' if user_data.get('auto_update', False) else 'Выключено'}\n"
+            f"💰 *Баланс:* {user_data.get('current_balance', 0)}₽\n"
+            f"🎮 *Всего игр:* {user_data.get('total_wins', 0) + user_data.get('total_losses', 0)}\n"
+            f"✅ *Победы:* {user_data.get('total_wins', 0)}\n"
+            f"❌ *Поражения:* {user_data.get('total_losses', 0)}\n"
+        )
+    else:
+        status_text += (
+            f"📝 *Зарегистрирован:* {'Да' if user_data.get('registered', False) else 'Нет'}\n"
+            f"⏳ *Ожидает ID:* {'Да' if user_data.get('waiting_for_id', False) else 'Нет'}\n"
+        )
+    
+    status_text += f"\n💾 *Данные сохранены:* Да"
+    
+    bot.reply_to(message, status_text, parse_mode='Markdown')
 
 # Обработчик callback запросов
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     user_id = str(call.from_user.id)
     users_data = load_users_data()
-    
-    if user_id not in users_data:
-        users_data[user_id] = init_user(user_id)
-        save_users_data(users_data)
+    users_data = ensure_user_data(user_id, users_data)
     
     if call.data == "register":
         register_text = (
@@ -767,10 +835,7 @@ def callback_handler(call):
 def process_id_input(message):
     user_id = str(message.from_user.id)
     users_data = load_users_data()
-    
-    if user_id not in users_data:
-        users_data[user_id] = init_user(user_id)
-        save_users_data(users_data)
+    users_data = ensure_user_data(user_id, users_data)
     
     print(f"🔍 Получено сообщение от пользователя {user_id}: {message.text}")
     print(f"🔍 waiting_for_id: {users_data[user_id].get('waiting_for_id', False)}")
@@ -927,14 +992,25 @@ def process_id_input(message):
                 bot.send_message(message.chat.id, error_text, parse_mode='Markdown', reply_markup=markup)
     else:
         # Обычное сообщение - показываем главное меню
-        welcome_text = (
-            f"🎰 *Добро пожаловать в VIP Сигналы Mines!*\n\n"
-            f"*Используйте кнопки меню для навигации по боту.*\n\n"
-            f"*Для начала работы:*\n"
-            f"1️⃣ Зарегистрируйтесь по партнерской ссылке\n"
-            f"2️⃣ Введите ваш ID\n"
-            f"3️⃣ Получайте VIP сигналы!"
-        )
+        if users_data[user_id].get('id_verified', False):
+            # Пользователь уже верифицирован
+            welcome_text = (
+                f"🎰 *С возвращением в VIP Сигналы Mines!*\n\n"
+                f"✅ *Ваш ID:* `{users_data[user_id].get('real_id', 'Неизвестно')}`\n"
+                f"🔍 *Статус:* Верифицирован\n"
+                f"🔄 *Автообновление:* {'Включено' if users_data[user_id].get('auto_update', False) else 'Выключено'}\n\n"
+                f"🎯 *Выберите действие:*"
+            )
+        else:
+            # Новый пользователь или не верифицированный
+            welcome_text = (
+                f"🎰 *Добро пожаловать в VIP Сигналы Mines!*\n\n"
+                f"*Используйте кнопки меню для навигации по боту.*\n\n"
+                f"*Для начала работы:*\n"
+                f"1️⃣ Зарегистрируйтесь по партнерской ссылке\n"
+                f"2️⃣ Введите ваш ID\n"
+                f"3️⃣ Получайте VIP сигналы!"
+            )
         bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu())
 
 # Запуск автообновления в отдельном потоке
