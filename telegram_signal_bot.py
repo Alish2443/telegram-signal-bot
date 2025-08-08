@@ -21,7 +21,7 @@ PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # Файл для хранения данных пользователей
-USERS_FILE = "users_data.json"
+USERS_FILE = "Z:/telegram_bot_data/users_data.json"
 
 # Флаг для корректного завершения
 shutdown_flag = False
@@ -37,15 +37,29 @@ def signal_handler(signum, frame):
 def load_users_data():
     """Загрузка данных пользователей из файла"""
     try:
+        # Создаем папку если её нет
+        import os
+        os.makedirs(os.path.dirname(USERS_FILE), exist_ok=True)
+        print(f"📁 Загружаем данные из: {USERS_FILE}")
+        
         with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            print(f"✅ Загружено {len(data)} пользователей")
+            return data
     except FileNotFoundError:
+        print(f"📁 Файл данных не найден, создаем новый: {USERS_FILE}")
         return {}
 
 def save_users_data(users_data):
     """Сохранение данных пользователей в файл"""
+    # Создаем папку если её нет
+    import os
+    os.makedirs(os.path.dirname(USERS_FILE), exist_ok=True)
+    
+    print(f"💾 Сохраняем данные в: {USERS_FILE}")
     with open(USERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(users_data, f, ensure_ascii=False, indent=2)
+    print(f"✅ Сохранено {len(users_data)} пользователей")
 
 def init_user(user_id):
     """Инициализация нового пользователя"""

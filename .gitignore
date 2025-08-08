@@ -37,6 +37,7 @@ Thumbs.db
 
 # Bot specific
 users_data.json
+Z:/telegram_bot_data/
 *.log
 
 # Temporary files
