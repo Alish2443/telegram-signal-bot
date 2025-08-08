@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: telegram-signal-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python telegram_signal_bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: 8351426493:AAEL5tOkQCMGP4aeEyzRqieuspIKR1kgRfA
+      - key: PARTNER_LINK
+        value: https://1wbtqu.life/casino/list?open=register&p=ufc1
+      - key: PROMO_CODE
+        value: AVIATWIN 

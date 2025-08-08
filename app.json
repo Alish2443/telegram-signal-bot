@@ -1,0 +1,25 @@
+{
+  "name": "Telegram Signal Bot",
+  "description": "VIP Signals Mines Bot",
+  "repository": "https://github.com/yourusername/telegram-signal-bot",
+  "keywords": ["python", "telegram", "bot"],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token",
+      "value": "8351426493:AAEL5tOkQCMGP4aeEyzRqieuspIKR1kgRfA"
+    },
+    "PARTNER_LINK": {
+      "description": "Partner Link",
+      "value": "https://1wbtqu.life/casino/list?open=register&p=ufc1"
+    },
+    "PROMO_CODE": {
+      "description": "Promo Code",
+      "value": "AVIATWIN"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+} 
