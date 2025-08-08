@@ -586,7 +586,7 @@ def start_command(message):
             f"*Используйте кнопки меню для навигации по боту.*"
         )
     
-    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(user_id))
 
 # Обработчик команды /status
 @bot.message_handler(commands=['status'])
@@ -631,50 +631,66 @@ def callback_handler(call):
     users_data = ensure_user_data(user_id, users_data)
     
     if call.data == "register":
-        register_text = (
-            f"📝 *Регистрация в 1win*\n\n"
-            f"🔗 *Партнерская ссылка:*\n"
-            f"`{PARTNER_LINK}`\n\n"
-            f"🎁 *Промокод:* `{PROMO_CODE}`\n\n"
-            f"*Инструкция:*\n"
-            f"1️⃣ Перейдите по ссылке выше\n"
-            f"2️⃣ Зарегистрируйтесь\n"
-            f"3️⃣ Введите промокод при регистрации\n"
-            f"4️⃣ Скопируйте ваш ID\n"
-            f"5️⃣ Вернитесь в бот и введите ID\n\n"
-            f"*После регистрации нажмите \"Ввести ID\"*"
-        )
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔍 Ввести ID", callback_data="enter_id"))
-        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-        
-        bot.edit_message_text(register_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=markup)
-        
-        users_data[user_id]['registered'] = True
-        save_users_data(users_data)
+        if users_data[user_id].get('id_verified', False):
+            already_text = (
+                f"✅ *Вы уже верифицированы.*\n\n"
+                f"💡 Откройте раздел *Советы* или получите *VIP Сигнал*."
+            )
+            bot.edit_message_text(already_text, call.message.chat.id, call.message.message_id,
+                                 parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+        else:
+            register_text = (
+                f"📝 *Регистрация в 1win*\n\n"
+                f"🔗 *Партнерская ссылка:*\n"
+                f"`{PARTNER_LINK}`\n\n"
+                f"🎁 *Промокод:* `{PROMO_CODE}`\n\n"
+                f"*Инструкция:*\n"
+                f"1️⃣ Перейдите по ссылке выше\n"
+                f"2️⃣ Зарегистрируйтесь\n"
+                f"3️⃣ Введите промокод при регистрации\n"
+                f"4️⃣ Скопируйте ваш ID\n"
+                f"5️⃣ Вернитесь в бот и введите ID\n\n"
+                f"*После регистрации нажмите \"Ввести ID\"*"
+            )
+            
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("🔍 Ввести ID", callback_data="enter_id"))
+            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+            
+            bot.edit_message_text(register_text, call.message.chat.id, call.message.message_id,
+                                 parse_mode='Markdown', reply_markup=markup)
+            
+            users_data[user_id]['registered'] = True
+            save_users_data(users_data)
     
     elif call.data == "enter_id":
-        enter_id_text = (
-            f"🔍 *Введите ваш ID*\n\n"
-            f"*ID можно найти:*\n"
-            f"• В личном кабинете 1win\n"
-            f"• В настройках профиля\n"
-            f"• В разделе \"Мой аккаунт\"\n\n"
-            f"*Отправьте ID в следующем сообщении*"
-        )
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-        
-        bot.edit_message_text(enter_id_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=markup)
-        
-        # Устанавливаем состояние ожидания ID
-        users_data[user_id]['waiting_for_id'] = True
-        save_users_data(users_data)
-        print(f"✅ Установлен флаг waiting_for_id для пользователя {user_id}")
+        if users_data[user_id].get('id_verified', False):
+            already_text = (
+                f"✅ *Ваш ID уже подтвержден.*\n\n"
+                f"💡 Перейдите в *Советы* или получите *VIP Сигнал*."
+            )
+            bot.edit_message_text(already_text, call.message.chat.id, call.message.message_id,
+                                 parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+        else:
+            enter_id_text = (
+                f"🔍 *Введите ваш ID*\n\n"
+                f"*ID можно найти:*\n"
+                f"• В личном кабинете 1win\n"
+                f"• В настройках профиля\n"
+                f"• В разделе \"Мой аккаунт\"\n\n"
+                f"*Отправьте ID в следующем сообщении*"
+            )
+            
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+            
+            bot.edit_message_text(enter_id_text, call.message.chat.id, call.message.message_id,
+                                 parse_mode='Markdown', reply_markup=markup)
+            
+            # Устанавливаем состояние ожидания ID
+            users_data[user_id]['waiting_for_id'] = True
+            save_users_data(users_data)
+            print(f"✅ Установлен флаг waiting_for_id для пользователя {user_id}")
     
     elif call.data == "get_signal":
         if not users_data[user_id].get('id_verified', False):
@@ -1197,7 +1213,7 @@ def process_id_input(message):
                 f"2️⃣ Введите ваш ID\n"
                 f"3️⃣ Получайте VIP сигналы!"
             )
-        bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(users_data[user_id]))
+        bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=get_main_menu(user_id))
 
 # Обработчик команды /tips
 @bot.message_handler(commands=['tips'])
