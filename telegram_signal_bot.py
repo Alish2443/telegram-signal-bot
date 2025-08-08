@@ -11,6 +11,15 @@ import signal
 import sys
 
 import os
+from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo
+    def get_msk_time_str():
+        return datetime.now(ZoneInfo("Europe/Moscow")).strftime("%H:%M:%S")
+except Exception:
+    def get_msk_time_str():
+        # Fallback: UTC+3 approximation
+        return time.strftime("%H:%M:%S", time.gmtime(time.time() + 3 * 3600))
 
 # Конфигурация бота
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8351426493:AAEL5tOkQCMGP4aeEyzRqieuspIKR1kgRfA")
@@ -493,6 +502,21 @@ def auto_update_signals():
                         signal = generate_signal()
                         signal_number = random.randint(1000, 9999)
                         
+                        # Формируем пошаговый режим и сетку
+                        coords_sequence = generate_coords_sequence(signal['clicks'])
+                        current_users_data[user_id]['current_signal'] = {
+                            'number': signal_number,
+                            'coords': coords_sequence,
+                            'revealed': 0,
+                            'created_at': current_time,
+                            'win_chance': signal['win_chance'],
+                            'bet_amount': signal['bet_amount'],
+                            'clicks': signal['clicks'],
+                            'multiplier': signal['multiplier']
+                        }
+                        grid = render_grid_with_labels()
+                        instr = format_instruction(coords_sequence, 0)
+                        
                         update_text = (
                             f"🔄 *АВТООБНОВЛЕНИЕ СИГНАЛА*\n\n"
                             f"🎰 *VIP СИГНАЛ #{signal_number}*\n\n"
@@ -500,22 +524,21 @@ def auto_update_signals():
                             f"💵 Рекомендуемая ставка: *{signal['bet_amount']}₽*\n"
                             f"🎯 Количество кликов: *{signal['clicks']}*\n"
                             f"📈 Множитель: *x{signal['multiplier']}*\n\n"
-                            f"⚡ Следующее обновление через 10 секунд\n"
-                            f"🕐 Время: *{time.strftime('%H:%M:%S')}*\n\n"
-                            f"💡 *Чтобы отключить автообновление, нажмите \"Настройки\"*"
+                            f"🗺️ *Сетка:*\n"
+                            f"{grid}\n\n"
+                            f"📌 {instr}\n\n"
+                            f"🕐 Время (МСК): *{get_msk_time_str()}*\n"
                         )
                         
                         markup = InlineKeyboardMarkup(row_width=2)
-                        markup.add(
-                            InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
-                            InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
-                        )
+                        markup.add(InlineKeyboardButton("➡️ Показать следующий шаг", callback_data="next_step"))
+                        markup.add(InlineKeyboardButton("⚙️ Настройки", callback_data="settings"))
                         markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
                         
                         # Отправляем обновление только активным пользователям с включенным автообновлением
                         bot.send_message(int(user_id), update_text, parse_mode='Markdown', reply_markup=markup)
                         
-                        # Обновляем время последнего сигнала
+                        # Обновляем время последнего сигнала и сохраняем состояние
                         current_users_data[user_id]['last_signal_time'] = current_time
                         save_users_data(current_users_data)
                         
@@ -772,7 +795,7 @@ def callback_handler(call):
                 f"💰 *ВАШ БАЛАНС*\n\n"
                 f"🆔 *ID:* `{users_data[user_id].get('real_id', 'Неизвестно')}`\n"
                 f"💵 *Текущий баланс:* *{new_balance}₽*\n"
-                f"📊 *Последнее обновление:* {time.strftime('%H:%M:%S')}\n\n"
+                f"📊 *Последнее обновление (МСК):* {get_msk_time_str()}\n\n"
                 f"*Для пополнения баланса используйте партнерскую ссылку*"
             )
         else:
