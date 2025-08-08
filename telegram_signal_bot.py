@@ -22,7 +22,7 @@ except Exception:
         return time.strftime("%H:%M:%S", time.gmtime(time.time() + 3 * 3600))
 
 # Конфигурация бота
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8351426493:AAEL5tOkQCMGP4aeEyzRqieuspIKR1kgRfA")
+BOT_TOKEN = "8351426493:AAGdKed5HD0Xpy4Fs6Wj5vKONQZiq9Hu_8k"
 PARTNER_LINK = os.environ.get("PARTNER_LINK", "https://1wbtqu.life/casino/list?open=register&p=ufc1")
 PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
 
