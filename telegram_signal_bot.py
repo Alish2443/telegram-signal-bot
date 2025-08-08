@@ -75,28 +75,38 @@ def init_user(user_id):
     }
 
 def get_main_menu():
-    """Создание главного меню"""
+    """Создание красивого главного меню"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
-        InlineKeyboardButton("📝 Регистрация", callback_data="register"),
-        InlineKeyboardButton("🔍 Ввести ID", callback_data="enter_id")
+        InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
+        InlineKeyboardButton("🔐 Ввести ID", callback_data="enter_id")
     )
     markup.add(
-        InlineKeyboardButton("🎰 Получить сигнал", callback_data="get_signal"),
-        InlineKeyboardButton("📊 Статистика", callback_data="stats")
+        InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
+        InlineKeyboardButton("📈 Статистика", callback_data="stats")
     )
     markup.add(
-        InlineKeyboardButton("💰 Баланс", callback_data="balance"),
+        InlineKeyboardButton("💎 Баланс", callback_data="balance"),
         InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
     )
     return markup
 
 def generate_signal():
-    """Генерация случайного сигнала"""
-    win_chance = random.randint(75, 98)
-    bet_amount = random.choice([50, 100, 200, 300, 500, 1000])
-    clicks = random.randint(2, 5)
-    multiplier = round(random.uniform(1.5, 4.0), 2)
+    """Генерация правдоподобного VIP сигнала"""
+    # Более реалистичные параметры
+    win_chance = random.choice([85, 87, 89, 91, 93, 95, 97])
+    bet_amount = random.choice([100, 150, 200, 250, 300, 400, 500, 750, 1000])
+    clicks = random.choice([2, 3, 4, 5])
+    
+    # Более реалистичные множители
+    if clicks == 2:
+        multiplier = round(random.uniform(1.8, 2.5), 2)
+    elif clicks == 3:
+        multiplier = round(random.uniform(2.2, 3.2), 2)
+    elif clicks == 4:
+        multiplier = round(random.uniform(2.8, 4.0), 2)
+    else:  # 5 clicks
+        multiplier = round(random.uniform(3.5, 5.0), 2)
     
     return {
         'win_chance': win_chance,
@@ -402,27 +412,42 @@ def auto_update_signals():
             if (current_users_data[user_id].get('id_verified', False) and 
                 current_users_data[user_id].get('auto_update', False)):
                 try:
-                    signal = generate_signal()
-                    update_text = (
-                        f"🔄 *АВТООБНОВЛЕНИЕ СИГНАЛА*\n\n"
-                        f"🎰 *VIP СИГНАЛ #{random.randint(1000, 9999)}*\n\n"
-                        f"🔥 Вероятность выигрыша: *{signal['win_chance']}%*\n"
-                        f"💵 Рекомендуемая ставка: *{signal['bet_amount']}₽*\n"
-                        f"🎯 Количество кликов: *{signal['clicks']}*\n"
-                        f"📈 Множитель: *x{signal['multiplier']}*\n\n"
-                        f"⚡ Следующее обновление через 10 секунд\n\n"
-                        f"💡 *Чтобы отключить автообновление, нажмите \"Настройки\"*"
-                    )
+                    # Проверяем перезарядку для автообновления
+                    current_time = time.time()
+                    last_signal_time = current_users_data[user_id].get('last_signal_time', 0)
+                    cooldown_remaining = 10 - (current_time - last_signal_time)
                     
-                    markup = InlineKeyboardMarkup(row_width=2)
-                    markup.add(
-                        InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
-                        InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
-                    )
-                    markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-                    
-                    # Отправляем обновление только активным пользователям с включенным автообновлением
-                    bot.send_message(int(user_id), update_text, parse_mode='Markdown', reply_markup=markup)
+                    if cooldown_remaining <= 0:
+                        # Перезарядка завершена, отправляем новый сигнал
+                        signal = generate_signal()
+                        signal_number = random.randint(1000, 9999)
+                        
+                        update_text = (
+                            f"🔄 *АВТООБНОВЛЕНИЕ СИГНАЛА*\n\n"
+                            f"🎰 *VIP СИГНАЛ #{signal_number}*\n\n"
+                            f"🔥 Вероятность выигрыша: *{signal['win_chance']}%*\n"
+                            f"💵 Рекомендуемая ставка: *{signal['bet_amount']}₽*\n"
+                            f"🎯 Количество кликов: *{signal['clicks']}*\n"
+                            f"📈 Множитель: *x{signal['multiplier']}*\n\n"
+                            f"⚡ Следующее обновление через 10 секунд\n"
+                            f"🕐 Время: *{time.strftime('%H:%M:%S')}*\n\n"
+                            f"💡 *Чтобы отключить автообновление, нажмите \"Настройки\"*"
+                        )
+                        
+                        markup = InlineKeyboardMarkup(row_width=2)
+                        markup.add(
+                            InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
+                            InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
+                        )
+                        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+                        
+                        # Отправляем обновление только активным пользователям с включенным автообновлением
+                        bot.send_message(int(user_id), update_text, parse_mode='Markdown', reply_markup=markup)
+                        
+                        # Обновляем время последнего сигнала
+                        current_users_data[user_id]['last_signal_time'] = current_time
+                        save_users_data(current_users_data)
+                        
                 except Exception as e:
                     print(f"Ошибка отправки автообновления пользователю {user_id}: {e}")
 
@@ -523,25 +548,57 @@ def callback_handler(call):
             bot.edit_message_text(error_text, call.message.chat.id, call.message.message_id,
                                  parse_mode='Markdown', reply_markup=markup)
         else:
-            signal = generate_signal()
-            signal_text = (
-                f"🎰 *VIP СИГНАЛ #{random.randint(1000, 9999)}*\n\n"
-                f"🔥 *Вероятность выигрыша:* {signal['win_chance']}%\n"
-                f"💵 *Рекомендуемая ставка:* {signal['bet_amount']}₽\n"
-                f"🎯 *Количество кликов:* {signal['clicks']}\n"
-                f"📈 *Множитель:* x{signal['multiplier']}\n\n"
-                f"⚡ *Следующее обновление через 10 секунд*"
-            )
+            # Проверяем перезарядку
+            current_time = time.time()
+            last_signal_time = users_data[user_id].get('last_signal_time', 0)
+            cooldown_remaining = 10 - (current_time - last_signal_time)
             
-            markup = InlineKeyboardMarkup(row_width=2)
-            markup.add(
-                InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
-                InlineKeyboardButton("📊 Статистика", callback_data="stats")
-            )
-            markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-            
-            bot.edit_message_text(signal_text, call.message.chat.id, call.message.message_id,
-                                 parse_mode='Markdown', reply_markup=markup)
+            if cooldown_remaining > 0:
+                # Перезарядка еще активна
+                cooldown_text = (
+                    f"⏰ *ПЕРЕЗАРЯДКА АКТИВНА*\n\n"
+                    f"🔄 *Осталось:* {int(cooldown_remaining)} сек\n"
+                    f"⚡ *Следующий сигнал через:* {int(cooldown_remaining)} сек\n\n"
+                    f"💡 *Подождите немного перед следующим запросом*"
+                )
+                
+                markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(
+                    InlineKeyboardButton("⏰ Ждать", callback_data="wait_cooldown"),
+                    InlineKeyboardButton("📊 Статистика", callback_data="stats")
+                )
+                markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+                
+                bot.edit_message_text(cooldown_text, call.message.chat.id, call.message.message_id,
+                                     parse_mode='Markdown', reply_markup=markup)
+            else:
+                # Генерируем новый сигнал
+                signal = generate_signal()
+                signal_number = random.randint(1000, 9999)
+                
+                signal_text = (
+                    f"🎰 *VIP СИГНАЛ #{signal_number}*\n\n"
+                    f"🔥 *Вероятность выигрыша:* {signal['win_chance']}%\n"
+                    f"💵 *Рекомендуемая ставка:* {signal['bet_amount']}₽\n"
+                    f"🎯 *Количество кликов:* {signal['clicks']}\n"
+                    f"📈 *Множитель:* x{signal['multiplier']}\n\n"
+                    f"⚡ *Следующее обновление через 10 секунд*\n"
+                    f"🕐 *Время:* {time.strftime('%H:%M:%S')}"
+                )
+                
+                markup = InlineKeyboardMarkup(row_width=2)
+                markup.add(
+                    InlineKeyboardButton("🔄 Обновить", callback_data="get_signal"),
+                    InlineKeyboardButton("📊 Статистика", callback_data="stats")
+                )
+                markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+                
+                bot.edit_message_text(signal_text, call.message.chat.id, call.message.message_id,
+                                     parse_mode='Markdown', reply_markup=markup)
+                
+                # Сохраняем время последнего сигнала
+                users_data[user_id]['last_signal_time'] = current_time
+                save_users_data(users_data)
     
     elif call.data == "stats":
         if users_data[user_id].get('id_verified', False):
@@ -660,15 +717,45 @@ def callback_handler(call):
         bot.edit_message_text(auto_text, call.message.chat.id, call.message.message_id,
                              parse_mode='Markdown', reply_markup=markup)
     
+    elif call.data == "wait_cooldown":
+        # Показываем время до следующего сигнала
+        current_time = time.time()
+        last_signal_time = users_data[user_id].get('last_signal_time', 0)
+        cooldown_remaining = 10 - (current_time - last_signal_time)
+        
+        if cooldown_remaining > 0:
+            wait_text = (
+                f"⏰ *ПЕРЕЗАРЯДКА*\n\n"
+                f"🔄 *Осталось:* {int(cooldown_remaining)} сек\n"
+                f"⚡ *Следующий сигнал через:* {int(cooldown_remaining)} сек\n\n"
+                f"💡 *Подождите немного перед следующим запросом*"
+            )
+        else:
+            wait_text = (
+                f"✅ *ПЕРЕЗАРЯДКА ЗАВЕРШЕНА*\n\n"
+                f"⚡ *Можете получить новый сигнал!*\n\n"
+                f"🎯 *Нажмите \"VIP Сигнал\" для получения*"
+            )
+        
+        markup = InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
+            InlineKeyboardButton("📊 Статистика", callback_data="stats")
+        )
+        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
+        
+        bot.edit_message_text(wait_text, call.message.chat.id, call.message.message_id,
+                             parse_mode='Markdown', reply_markup=markup)
+    
     elif call.data == "back_to_main":
         main_text = (
             f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
             f"*Выберите действие:*\n\n"
-            f"📝 *Регистрация* - зарегистрироваться в 1win\n"
-            f"🔍 *Ввести ID* - подтвердить ваш аккаунт\n"
-            f"🎰 *Получить сигнал* - получить VIP прогноз\n"
-            f"📊 *Статистика* - ваши результаты\n"
-            f"💰 *Баланс* - текущий баланс\n"
+            f"🎯 *Регистрация* - зарегистрироваться в 1win\n"
+            f"🔐 *Ввести ID* - подтвердить ваш аккаунт\n"
+            f"⚡ *VIP Сигнал* - получить VIP прогноз\n"
+            f"📈 *Статистика* - ваши результаты\n"
+            f"💎 *Баланс* - текущий баланс\n"
             f"⚙️ *Настройки* - настройки бота"
         )
         
