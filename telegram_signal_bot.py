@@ -13,9 +13,18 @@ import sys
 import os
 
 # Конфигурация бота
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8351426493:AAEL5tOkQCMGP4aeEyzRqieuspIKR1kgRfA")
+BOT_TOKEN = (os.environ.get("BOT_TOKEN") or "").strip()
 PARTNER_LINK = os.environ.get("PARTNER_LINK", "https://1wbtqu.life/casino/list?open=register&p=ufc1")
 PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
+
+if not BOT_TOKEN:
+    print("❌ BOT_TOKEN не задан.")
+    sys.exit(1)
+
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# Файл для хранения данных пользователей
+USERS_FILE = os.environ.get("USERS_FILE", "/app/data/users_data.json")
 
 # Инициализация бота
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -112,21 +121,18 @@ def init_user(user_id):
         }
     }
 
-def get_main_menu():
-    """Создание красивого главного меню"""
+def get_main_menu(user_data: dict = None):
+    """Главное меню без регистрации/ввода ID"""
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
-        InlineKeyboardButton("🎯 Регистрация", callback_data="register"),
-        InlineKeyboardButton("🔐 Ввести ID", callback_data="enter_id")
-    )
-    markup.add(
-        InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
+        InlineKeyboardButton("💡 Советы", callback_data="tips"),
         InlineKeyboardButton("📈 Статистика", callback_data="stats")
     )
     markup.add(
-        InlineKeyboardButton("💎 Баланс", callback_data="balance"),
-        InlineKeyboardButton("⚙️ Настройки", callback_data="settings")
+        InlineKeyboardButton("⚡ VIP Сигнал", callback_data="get_signal"),
+        InlineKeyboardButton("💎 Баланс", callback_data="balance")
     )
+    markup.add(InlineKeyboardButton("⚙️ Настройки", callback_data="settings"))
     return markup
 
 def generate_signal():
@@ -597,30 +603,29 @@ def callback_handler(call):
     users_data = load_users_data()
     users_data = ensure_user_data(user_id, users_data)
     
-    if call.data == "register":
-        register_text = (
-            f"📝 *Регистрация в 1win*\n\n"
-            f"🔗 *Партнерская ссылка:*\n"
-            f"`{PARTNER_LINK}`\n\n"
-            f"🎁 *Промокод:* `{PROMO_CODE}`\n\n"
-            f"*Инструкция:*\n"
-            f"1️⃣ Перейдите по ссылке выше\n"
-            f"2️⃣ Зарегистрируйтесь\n"
-            f"3️⃣ Введите промокод при регистрации\n"
-            f"4️⃣ Скопируйте ваш ID\n"
-            f"5️⃣ Вернитесь в бот и введите ID\n\n"
-            f"*После регистрации нажмите \"Ввести ID\"*"
-        )
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔍 Ввести ID", callback_data="enter_id"))
-        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-        
-        bot.edit_message_text(register_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=markup)
-        
-        users_data[user_id]['registered'] = True
-        save_users_data(users_data)
+ if call.data == "register":
+    tips_text = (
+        "💡 *Советы для получения VIP сигналов:*\n\n"
+        "• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
+        "• Держите разумный размер ставки относительно банка.\n"
+        "• Не пропускайте шаги в последовательности координат.\n"
+        "• При необходимости включите автообновление в настройках.\n\n"
+        "▶️ Нажмите \"VIP Сигнал\" для получения нового сигнала."
+    )
+    bot.edit_message_text(tips_text, call.message.chat.id, call.message.message_id,
+                          parse_mode='Markdown', reply_markup=get_main_menu())
+
+elif call.data == "enter_id":
+    tips_text = (
+        "💡 *Советы для получения VIP сигналов:*\n\n"
+        "• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
+        "• Держите разумный размер ставки относительно банка.\n"
+        "• Не пропускайте шаги в последовательности координат.\n"
+        "• При необходимости включите автообновление в настройках.\n\n"
+        "▶️ Нажмите \"VIP Сигнал\" для получения нового сигнала."
+    )
+    bot.edit_message_text(tips_text, call.message.chat.id, call.message.message_id,
+                          parse_mode='Markdown', reply_markup=get_main_menu())
     
     elif call.data == "enter_id":
         enter_id_text = (
@@ -932,18 +937,16 @@ def callback_handler(call):
                 # Сбрасываем состояние сигнала после завершения
                 users_data[user_id]['current_signal'] = None
                 save_users_data(users_data)
-    
-    elif call.data == "back_to_main":
-        main_text = (
-            f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
-            f"*Выберите действие:*\n\n"
-            f"🎯 *Регистрация* - зарегистрироваться в 1win\n"
-            f"🔐 *Ввести ID* - подтвердить ваш аккаунт\n"
-            f"⚡ *VIP Сигнал* - получить VIP прогноз\n"
-            f"📈 *Статистика* - ваши результаты\n"
-            f"💎 *Баланс* - текущий баланс\n"
-            f"⚙️ *Настройки* - настройки бота"
-        )
+
+main_text = (
+    f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
+    f"*Выберите действие:*\n\n"
+    f"💡 *Советы* — рекомендации\n"
+    f"⚡ *VIP Сигнал* — получить прогноз\n"
+    f"📈 *Статистика* — ваши результаты\n"
+    f"💎 *Баланс* — текущий баланс\n"
+    f"⚙️ *Настройки* — параметры бота"
+)
         
         bot.edit_message_text(main_text, call.message.chat.id, call.message.message_id,
                              parse_mode='Markdown', reply_markup=get_main_menu())
