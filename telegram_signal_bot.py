@@ -22,7 +22,7 @@ except Exception:
         return time.strftime("%H:%M:%S", time.gmtime(time.time() + 3 * 3600))
 
 # Конфигурация бота
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = (os.environ.get("BOT_TOKEN") or "").strip()
 PARTNER_LINK = os.environ.get("PARTNER_LINK", "https://1wbtqu.life/casino/list?open=register&p=ufc1")
 PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
 
@@ -30,6 +30,14 @@ PROMO_CODE = os.environ.get("PROMO_CODE", "AVIATWIN")
 if not BOT_TOKEN:
     print("❌ BOT_TOKEN не задан. Установите переменную окружения BOT_TOKEN.")
     sys.exit(1)
+
+# Валидация формата токена и отладочная маскировка
+if not re.match(r"^\d+:[A-Za-z0-9_\-]{10,}$", BOT_TOKEN):
+    print("❌ Неверный формат BOT_TOKEN. Проверьте, что вы вставили полный токен без пробелов и кавычек.")
+    print(f"Получен: {BOT_TOKEN[:6]}...{BOT_TOKEN[-4:]} (len={len(BOT_TOKEN)})")
+    sys.exit(1)
+else:
+    print(f"🔑 BOT_TOKEN принят: {BOT_TOKEN[:6]}...{BOT_TOKEN[-4:]} (len={len(BOT_TOKEN)})")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
