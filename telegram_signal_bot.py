@@ -938,18 +938,23 @@ def callback_handler(call):
                 users_data[user_id]['current_signal'] = None
                 save_users_data(users_data)
 
-main_text = (
-    f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
-    f"*Выберите действие:*\n\n"
-    f"💡 *Советы* — рекомендации\n"
-    f"⚡ *VIP Сигнал* — получить прогноз\n"
-    f"📈 *Статистика* — ваши результаты\n"
-    f"💎 *Баланс* — текущий баланс\n"
-    f"⚙️ *Настройки* — параметры бота"
-)
-        
-        bot.edit_message_text(main_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=get_main_menu())
+elif call.data == "back_to_main":
+    main_text = (
+        f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
+        f"*Выберите действие:*\n\n"
+        f"💡 *Советы* — рекомендации\n"
+        f"⚡ *VIP Сигнал* — получить прогноз\n"
+        f"📈 *Статистика* — ваши результаты\n"
+        f"💎 *Баланс* — текущий баланс\n"
+        f"⚙️ *Настройки* — параметры бота"
+    )
+    bot.edit_message_text(
+        main_text,
+        call.message.chat.id,
+        call.message.message_id,
+        parse_mode='Markdown',
+        reply_markup=get_main_menu()
+    )
 
 # Обработчик текстовых сообщений (для ввода ID)
 @bot.message_handler(func=lambda message: True)
