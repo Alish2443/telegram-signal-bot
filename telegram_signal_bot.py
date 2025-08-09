@@ -620,7 +620,7 @@ def callback_handler(call):
             reply_markup=get_main_menu()
         )
 
-    elif call.data == "enter_id":
+       elif call.data == "tips":
         tips_text = (
             "💡 *Советы для получения VIP сигналов:*\n\n"
             "• Следуйте пошаговой инструкции (кнопка \"Показать следующий шаг\").\n"
@@ -636,12 +636,24 @@ def callback_handler(call):
             parse_mode='Markdown',
             reply_markup=get_main_menu()
         )
-        
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔙 Главное меню", callback_data="back_to_main"))
-        
-        bot.edit_message_text(enter_id_text, call.message.chat.id, call.message.message_id,
-                             parse_mode='Markdown', reply_markup=markup)
+
+    elif call.data == "back_to_main":
+        main_text = (
+            f"🎰 *VIP СИГНАЛЫ MINES*\n\n"
+            f"*Выберите действие:*\n\n"
+            f"💡 *Советы* — рекомендации\n"
+            f"⚡ *VIP Сигнал* — получить прогноз\n"
+            f"📈 *Статистика* — ваши результаты\n"
+            f"💎 *Баланс* — текущий баланс\n"
+            f"⚙️ *Настройки* — параметры бота"
+        )
+        bot.edit_message_text(
+            main_text,
+            call.message.chat.id,
+            call.message.message_id,
+            parse_mode='Markdown',
+            reply_markup=get_main_menu()
+        ) 
         
         # Устанавливаем состояние ожидания ID
         users_data[user_id]['waiting_for_id'] = True
